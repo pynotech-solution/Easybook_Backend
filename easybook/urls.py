@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path,include
-from Users.views import CreateUser, PasswordResetRequestView, PasswordResetConfirmView
+from Users.views import CreateUser, LoginView, ProfileView, PasswordResetRequestView, PasswordResetConfirmView
 from rest_framework.authtoken.views import obtain_auth_token
 
 urlpatterns = [
@@ -24,6 +24,8 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls')),
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),
     path('api/register/', CreateUser.as_view(), name='create_user'),
+    path('api/login/', LoginView.as_view(), name='login'),
+    path('api/profile/', ProfileView.as_view(), name='profile'),
     path('api/password-reset/', PasswordResetRequestView.as_view(), name='password_reset'),
     path('api/password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 ]

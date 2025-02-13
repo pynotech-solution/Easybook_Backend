@@ -31,8 +31,16 @@ class User(AbstractBaseUser):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name', 'other_names']
 
+    # def get_by_natural_key(self, username):
+    #     # username here refers to the value for USERNAME_FIELD
+    #     return self.get(**{self.model.USERNAME_FIELD: username})
+
+
     def __str__(self):
         return self.email
+    
+# Attach get_by_natural_key to the default manager
+User.objects.__class__.get_by_natural_key = lambda self, username: self.get(email=username)
 
     
 class PasswordRecoveryToken(models.Model):
