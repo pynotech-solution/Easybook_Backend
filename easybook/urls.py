@@ -19,6 +19,7 @@ from django.urls import path,include
 from Users.views import CreateUser, LoginView, ProfileView, PasswordResetRequestView, PasswordResetConfirmView
 from rest_framework.authtoken.views import obtain_auth_token
 from Services.views import ServiceViewSet, ServiceCategoryListCreateView,PricingListCreateView
+from Appointments.views import AvailableTimeSlotListView, AppointmentCreateView, AppointmentDetailView, TimeSlotCreateView
 
 
 service_list = ServiceViewSet.as_view({
@@ -51,5 +52,10 @@ urlpatterns = [
     path('services/categories/', ServiceCategoryListCreateView.as_view(), name='service-category-list-create'),
     path('pricing/', PricingListCreateView.as_view(), name='pricing-list-create'),
 
+    #Appointments api endpoints
+    path('timeslots/get', AvailableTimeSlotListView.as_view(), name='available-timeslots'),
+    path('appointments/', AppointmentCreateView.as_view(), name='appointment-create'),
+    path('appointments/<uuid:pk>/', AppointmentDetailView.as_view(), name='appointment-detail'),
+    path('timeslots/create', TimeSlotCreateView.as_view(), name='timeslot-create'),
 
 ]
