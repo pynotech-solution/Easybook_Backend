@@ -21,6 +21,14 @@ from rest_framework.authtoken.views import obtain_auth_token
 from Services.views import ServiceViewSet, ServiceCategoryListCreateView,PricingListCreateView
 from Appointments.views import AvailableTimeSlotListView, AppointmentCreateView, AppointmentDetailView, TimeSlotCreateView
 
+from rest_framework import routers
+from Notifications.views import NotificationViewSet, UserNotificationPreferenceViewSet
+
+router = routers.DefaultRouter()
+router.register(r'notifications', NotificationViewSet)
+router.register(r'preferences', UserNotificationPreferenceViewSet)
+
+    
 
 service_list = ServiceViewSet.as_view({
     'get': 'list',
@@ -58,4 +66,6 @@ urlpatterns = [
     path('appointments/<uuid:pk>/', AppointmentDetailView.as_view(), name='appointment-detail'),
     path('timeslots/create', TimeSlotCreateView.as_view(), name='timeslot-create'),
 
+
+    path('', include(router.urls)),
 ]

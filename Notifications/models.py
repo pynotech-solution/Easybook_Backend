@@ -1,27 +1,26 @@
 from django.db import models
 from django.contrib.auth.models import User
-from Users.models import User
 
-class NotificationPreference(models.Model):
+class UserNotificationPreference(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    phone = models.CharField(max_length=20, blank=True)
-    email = models.EmailField(blank=True)
-    fcm_token = models.CharField(max_length=255, blank=True)
-    receive_sms = models.BooleanField(default=False)
-    receive_email = models.BooleanField(default=False)
-    receive_push = models.BooleanField(default=False)
+    email_enabled = models.BooleanField(default=True)
+    email = models.EmailField()
 
 class Notification(models.Model):
+    NOTIFICATION_TYPES = (
+        ('reminder', 'Reminder'),
+        ('confirmation', 'Confirmation'),
+        ('update', 'Update'),
+    )
+    
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    subject = models.CharField(max_length=255)
     message = models.TextField()
-    scheduled_time = models.DateTimeField()
+    scheduled_at = models.DateTimeField()
     status = models.CharField(
         max_length=10,
-        choices=[
-            ('pending', 'Pending'), 
-            ('sent', 'Sent'), 
-            ('failed', 'Failed')
-            ],
+        choices=[('pending', 'Pending'), ('sent', 'Sent'), ('failed', 'Failed')],
         default='pending'
     )
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,42 +1,34 @@
-from twilio.rest import Client
-from twilio.base.exceptions import TwilioRestException
+from mailersend import emails
+import os
 from django.conf import settings
+from django.utils import timezone
 
-class TwilioNotificationService:
+class MailerSendService:
     def __init__(self):
-        self.client = Client(
-            settings.TWILIO_CONFIG['account_sid'],
-            settings.TWILIO_CONFIG['auth_token']
-        )
-        self.notify_service = settings.TWILIO_CONFIG['notify_service_sid']
-
-    def _create_bindings(self, user):
-        bindings = []
+        self.client = emails.NewEmail()
+        self.client.set_mailersend_api_key(os.getenv('MAILERSEND_API_KEY'))
         
-        if user.notificationpreference.receive_sms and user.notificationpreference.phone:
-            bindings.append(f'sms:{user.notificationpreference.phone}')
-            
-        if user.notificationpreference.receive_email and user.notificationpreference.email:
-            bindings.append(f'email:{user.notificationpreference.email}')
-            
-        if user.notificationpreference.receive_push and user.notificationpreference.fcm_token:
-            bindings.append(f'fcm:{user.notificationpreference.fcm_token}')
-            
-        return bindings
-
-    def send_notification(self, user, message):
+    def send_email(self, recipient_email, subject, text):
         try:
-            bindings = self._create_bindings(user)
-            if not bindings:
-                return False
-
-            notification = self.client.notify.services(self.notify_service) \
-                .notifications.create(
-                    to_binding=bindings,
-                    body=message
-                )
-            return notification.status == 'sent'
+            mail_from = {
+                "email": settings.DEFAULT_FROM_EMAIL,
+                "name": "Notification Service"
+            }
             
-        except TwilioRestException as e:
-            print(f"Twilio Error: {str(e)}")
+            recipients = [
+                {
+                    "email": recipient_email
+                }
+            ]
+            
+            response = self.client.send({
+                "from": mail_from,
+                "to": recipients,
+                "subject": subject,
+                "text": text
+            })
+            
+            return response.status_code == 202
+        except Exception as e:
+            print(f"MailerSend Error: {str(e)}")
             return False
