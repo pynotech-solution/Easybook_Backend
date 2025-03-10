@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -140,3 +141,16 @@ REST_FRAMEWORK = {
     ],
 }
 AUTH_USER_MODEL = 'Users.User'
+#AUTH_EMAIL_MODEL = 'Users.User.email'
+
+# MailerSend Configuration
+MAILERSEND = {
+    'API_KEY': os.getenv('MAILERSEND_API_KEY'),
+    'DOMAIN': os.getenv('MAILERSEND_DOMAIN'),
+    'DEFAULT_FROM_EMAIL': os.getenv('DEFAULT_FROM_EMAIL'),
+}
+
+# Celery Configuration
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_TIMEZONE = 'UTC'

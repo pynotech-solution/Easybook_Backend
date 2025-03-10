@@ -24,9 +24,24 @@ from Appointments.views import AvailableTimeSlotListView, AppointmentCreateView,
 from rest_framework import routers
 from Notifications.views import NotificationViewSet, UserNotificationPreferenceViewSet
 
-router = routers.DefaultRouter()
-router.register(r'notifications', NotificationViewSet)
-router.register(r'preferences', UserNotificationPreferenceViewSet)
+notification_list = NotificationViewSet.as_view({
+    'get': 'list',
+    'post': 'create'
+})
+
+notification_detail = NotificationViewSet.as_view({
+    'get': 'retrieve',
+    'put': 'update',
+    'patch': 'partial_update',
+    'delete': 'destroy'
+})
+
+preference_detail = UserNotificationPreferenceViewSet.as_view({
+    'post': 'create',
+    'get': 'retrieve',
+    'put': 'update',
+    'patch': 'partial_update'
+})
 
     
 
@@ -66,6 +81,8 @@ urlpatterns = [
     path('appointments/<uuid:pk>/', AppointmentDetailView.as_view(), name='appointment-detail'),
     path('timeslots/create', TimeSlotCreateView.as_view(), name='timeslot-create'),
 
-
-    path('', include(router.urls)),
+    #Notifications api endpoints
+    path('notifications/', notification_list, name='notification-list'),
+    path('notifications/<int:pk>/', notification_detail, name='notification-detail'),
+    path('notifications/preferences/', preference_detail, name='preference-detail'),
 ]
