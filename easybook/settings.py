@@ -164,8 +164,8 @@ AUTH_USER_MODEL = 'users.User'
 if 'test' in sys.argv:
     EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 else:
-    BREVO_API_KEY = 'Enter brevo api key here'
-    DEFAULT_FROM_EMAIL = ''  # Your verified sender email
+    BREVO_API_KEY = "Enter brevo api key here"
+    DEFAULT_FROM_EMAIL = ""  # Your verified sender email
     EMAIL_SENDER_NAME = ""
 
 # Paystack Configuration
