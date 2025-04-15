@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,10 +41,14 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
-    'Users',
+    'django_rest_passwordreset',
+    'users',
+    'drf_yasg',
     'Services',
     'Appointments',
     'Notifications',
+    'Payment',
+
 ]
 
 MIDDLEWARE = [
@@ -132,25 +137,38 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# DRF Configuration
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+     'DEFAULT_PERMISSION_CLASSES': (
+         'rest_framework.permissions.IsAuthenticated',  # Restricts access by default
+    ),
 }
-AUTH_USER_MODEL = 'Users.User'
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Access token expires in 30 minutes
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),     # Refresh token expires in 7 days
+    'ROTATE_REFRESH_TOKENS': True,                   # Issue a new refresh token on refresh
+    'BLACKLIST_AFTER_ROTATION': True,                # Blacklist old refresh tokens
+}
+
+AUTH_USER_MODEL = 'users.User'
 #AUTH_EMAIL_MODEL = 'Users.User.email'
 
-# MailerSend Configuration
-MAILERSEND = {
-    'API_KEY': os.getenv('MAILERSEND_API_KEY'),
-    'DOMAIN': os.getenv('MAILERSEND_DOMAIN'),
-    'DEFAULT_FROM_EMAIL': os.getenv('DEFAULT_FROM_EMAIL'),
-}
 
-# Celery Configuration
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
-CELERY_TIMEZONE = 'UTC'
+# Email Configuration
+if 'test' in sys.argv:
+    EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+else:
+    BREVO_API_KEY = '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'
+    DEFAULT_FROM_EMAIL = 'akyeaking2007@gmail.com'  # Your verified sender email
+    EMAIL_SENDER_NAME = "EasyBook Notifications"
+
+# Paystack Configuration
+PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY')
+PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
+PAYSTACK_WEBHOOK_SECRET = os.getenv('PAYSTACK_WEBHOOK_SECRET')

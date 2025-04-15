@@ -1,34 +1,32 @@
 from rest_framework import serializers
 from .models import User
-from .models import PasswordRecoveryToken
-from django.utils import timezone
-from datetime import timedelta
 
 class UserSerializer(serializers.ModelSerializer):
-        class Meta:
-            model = User
-            fields = (
-                '__all__'
-            )
+    password = serializers.CharField(write_only=True)
 
+    class Meta:
+        model = User
+        fields = ("id", "email", "password", "first_name", "last_name", "is_customer", "is_business", "phone_number", "address", "profile_picture")
 
-
-class PasswordResetRequestSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-
-    def validate_email(self, value):
-        if not User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("User with this email does not exist")
-        return value
-
-    def create_recovery_token(self, user):
-        # Create a recovery token instance
-        token_instance = PasswordRecoveryToken.objects.create(
-            user=user,
-            expires_at=timezone.now() + timedelta(days=1)
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            email=validated_data["email"],
+            password=validated_data["password"],
+            first_name=validated_data["first_name"],
+            last_name=validated_data["last_name"],
+            is_customer=validated_data.get("is_customer", False),
+            is_business=validated_data.get("is_business", False),
+            phone_number=validated_data.get("phone_number", ""),
+            address=validated_data.get("address", ""),
+            profile_picture=validated_data.get("profile_picture", None),
         )
-        return token_instance.token
+        return user
 
-class PasswordResetConfirmSerializer(serializers.Serializer):
-    token = serializers.UUIDField()
-    new_password = serializers.CharField(write_only=True, min_length=8)
+
+class ProfileSerializer(serializers.ModelSerializer):
+    profile_picture = serializers.ImageField(required=False) # Allow for updating profile picture
+    
+    class Meta:
+        model = User
+        fields = ("id", "email", "first_name", "last_name", "phone_number", "address", "profile_picture")
+        read_only_fields = ("email",)

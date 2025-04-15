@@ -5,7 +5,7 @@ from django.shortcuts import render
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from .models import TimeSlot, Appointment
-from .serializers import TimeSlotSerializer, AppointmentSerializer, TimeSlotSerializer
+from .serializers import TimeSlotSerializer, AppointmentSerializer, TimeSlotSerializer, AppointmentCreateSerializer
 from rest_framework.exceptions import ValidationError
 
 
@@ -24,7 +24,7 @@ class AvailableTimeSlotListView(generics.ListAPIView):
 
 class AppointmentCreateView(generics.CreateAPIView):
     queryset = Appointment.objects.all()
-    serializer_class = AppointmentSerializer
+    serializer_class = AppointmentCreateSerializer
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):

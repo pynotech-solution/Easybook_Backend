@@ -1,58 +1,44 @@
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
-import uuid
-from datetime import timedelta
-from django.contrib.auth.models import AbstractBaseUser
 
+class CustomUserManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        """Creates and saves a regular user with the given email and password."""
+        if not email:
+            raise ValueError("The Email field must be set")
 
-# Create your models here.
+        email = self.normalize_email(email)
+        extra_fields.setdefault("is_active", True)  # Ensure user is active by default
 
-class User(AbstractBaseUser):
-    Roles = {
-        'A': 'Admin',
-        'C': 'Customer',
-        'B': 'Business',
-    }
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
 
-    Languages = {
-        'E': 'English',
-        'F': 'French',
-        'S': 'Spanish',
-    }
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    first_name = models.CharField(max_length=1000)
-    last_name = models.CharField(max_length=1000)
-    other_names = models.CharField(max_length=1000)
-    email = models.EmailField(max_length=1000, unique=True)
-    date_joined = models.DateTimeField(auto_now_add=True)
-    password = models.CharField(max_length=1000, default='')
-    role = models.CharField(max_length=1, choices=[(Roles, Roles) for Roles in Roles])
-    language = models.CharField(max_length=1, choices=[(Languages, Languages) for Languages in Languages])
+    def create_superuser(self, email, password=None, **extra_fields):
+        """Creates and saves a superuser with the given email and password."""
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_active", True)  # Superuser should always be active
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name', 'other_names']
+        return self.create_user(email, password, **extra_fields)
 
-    # def get_by_natural_key(self, username):
-    #     # username here refers to the value for USERNAME_FIELD
-    #     return self.get(**{self.model.USERNAME_FIELD: username})
+class User(AbstractUser):
+    username = None  # Remove username field
+    email = models.EmailField(unique=True)
 
+    first_name = models.CharField(max_length=30, blank=False, null=False)
+    last_name = models.CharField(max_length=30, blank=False, null=False)
+    is_customer = models.BooleanField(default=False)
+    is_business = models.BooleanField(default=False)
+    phone_number = models.CharField(max_length=15, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    profile_picture = models.ImageField(upload_to="profile_pictures/", blank=True, null=True)
 
-    def __str__(self):
-        return self.email
-    
-# Attach get_by_natural_key to the default manager
-User.objects.__class__.get_by_natural_key = lambda self, username: self.get(email=username)
+    USERNAME_FIELD = "email"  # Use email instead of username for authentication
+    REQUIRED_FIELDS = ["first_name", "last_name"]  # Make first and last name required
 
-    
-class PasswordRecoveryToken(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recovery_tokens')
-    token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()
-
-    def save(self, *args, **kwargs):
-        if not self.expires_at:
-            self.expires_at = self.created_at + timedelta(days=1)
-        super().save(*args, **kwargs)
+    objects = CustomUserManager()  # Use custom manager
 
     def __str__(self):
-        return f"Recovery token for {self.user.id}"
+        return f"{self.first_name} {self.last_name} ({self.email})"

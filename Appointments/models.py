@@ -5,6 +5,7 @@ from django.db import models
 import uuid
 from django.db import models
 from django.conf import settings
+from Services.models import Service  # Import the Services model
 
 class TimeSlot(models.Model):
     id = models.AutoField(primary_key=True)
@@ -29,6 +30,8 @@ class Appointment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="appointments")
     timeslot = models.ForeignKey(TimeSlot, on_delete=models.CASCADE, related_name="appointments")
+    service = models.ForeignKey(Service, on_delete=models.CASCADE, default=None)
+    pricing = models.ForeignKey('Services.Pricing', on_delete=models.CASCADE, null=True, blank=True)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

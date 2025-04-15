@@ -1,34 +1,38 @@
-from mailersend import emails
-import os
 from django.conf import settings
-from django.utils import timezone
+import logging
+from sib_api_v3_sdk import ApiClient, Configuration, SendSmtpEmail, TransactionalEmailsApi
 
-class MailerSendService:
+logger = logging.getLogger(__name__)
+
+class EmailService:
     def __init__(self):
-        self.client = emails.NewEmail()
-        self.client.set_mailersend_api_key(os.getenv('MAILERSEND_API_KEY'))
-        
-    def send_email(self, recipient_email, subject, text):
+        config = Configuration()
+        config.api_key['api-key'] = settings.BREVO_API_KEY
+        self.api_client = ApiClient(configuration=config)
+        self.api_instance = TransactionalEmailsApi(self.api_client)
+
+    def send_email(self, recipient_email, subject, text_content, html_content=None):
+        """
+        Send email using Brevo's API
+        Returns: (success: bool, message: str)
+        """
         try:
-            mail_from = {
-                "email": settings.DEFAULT_FROM_EMAIL,
-                "name": "Notification Service"
-            }
+            logger.info(f"Attempting to send email to {recipient_email}")
             
-            recipients = [
-                {
-                    "email": recipient_email
-                }
-            ]
+            sender = {"name": settings.EMAIL_SENDER_NAME, "email": settings.DEFAULT_FROM_EMAIL}
+            to = [{"email": recipient_email}]
             
-            response = self.client.send({
-                "from": mail_from,
-                "to": recipients,
-                "subject": subject,
-                "text": text
-            })
+            send_smtp_email = SendSmtpEmail(
+                to=to,
+                html_content=html_content,
+                text_content=text_content,
+                subject=subject,
+                sender=sender
+            )
             
-            return response.status_code == 202
+            result = self.api_instance.send_transac_email(send_smtp_email)
+            logger.info(f"Email sent successfully to {recipient_email}")
+            return True, 'Email sent successfully'
         except Exception as e:
-            print(f"MailerSend Error: {str(e)}")
-            return False
+            logger.error(f"Email Error: {str(e)}")
+            return False, str(e)

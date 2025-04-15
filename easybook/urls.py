@@ -16,10 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path,include
-from Users.views import CreateUser, LoginView, ProfileView, PasswordResetRequestView, PasswordResetConfirmView
-from rest_framework.authtoken.views import obtain_auth_token
+from users.views import RegisterView, LoginView, RefreshTokenView, ProfileView
+from django_rest_passwordreset.views import ResetPasswordRequestToken, ResetPasswordConfirm
 from Services.views import ServiceViewSet, ServiceCategoryListCreateView,PricingListCreateView
 from Appointments.views import AvailableTimeSlotListView, AppointmentCreateView, AppointmentDetailView, TimeSlotCreateView
+from Payment.views import PaymentViewSet, ServiceProviderPaystackAccountViewSet
+from Payment.webhooks import paystack_webhook
 
 from rest_framework import routers
 from Notifications.views import NotificationViewSet, UserNotificationPreferenceViewSet
@@ -56,18 +58,45 @@ service_detail = ServiceViewSet.as_view({
     'patch': 'partial_update',
     'delete': 'destroy'
 })
+from django.contrib import admin
+from django.urls import path, include
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+from rest_framework import permissions
+from django.views.generic.base import RedirectView
+from django.conf import settings
+from django.conf.urls.static import static
+
+# Define API documentation metadata
+schema_view = get_schema_view(
+    openapi.Info(
+        title="EasyBook API",
+        default_version="v1",
+        description="API documentation for the EasyBook application.",
+        terms_of_service="https://www.easybook.com/terms/",
+        contact=openapi.Contact(email="support@easybook.com"),
+        license=openapi.License(name="BSD License"),
+    ),
+    public=True,
+    permission_classes=[permissions.AllowAny]
+)
+
+# Payment router setup
+payment_router = routers.DefaultRouter()
+payment_router.register(r'payments', PaymentViewSet, basename='payment')
+payment_router.register(r'provider-accounts', ServiceProviderPaystackAccountViewSet, basename='provider-account')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api-auth/', include('rest_framework.urls')),
-    path('api-token-auth/', obtain_auth_token, name='api_token_auth'),
 
     #Users api endpoints
-    path('register/', CreateUser.as_view(), name='create_user'),
+    path('register/', RegisterView.as_view(), name='register'),
     path('login/', LoginView.as_view(), name='login'),
+    path('refresh/', RefreshTokenView.as_view(), name='refresh'),
     path('profile/', ProfileView.as_view(), name='profile'),
-    path('password-reset/', PasswordResetRequestView.as_view(), name='password_reset'),
-    path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('password-reset/', ResetPasswordRequestToken.as_view(), name='password-reset'),
+    path('password-reset/confirm/', ResetPasswordConfirm.as_view(), name='password-rese-confirm'),
 
     #Services api endpoints
     path('services/', service_list, name='service-list'),
@@ -85,4 +114,22 @@ urlpatterns = [
     path('notifications/', notification_list, name='notification-list'),
     path('notifications/<int:pk>/', notification_detail, name='notification-detail'),
     path('notifications/preferences/', preference_detail, name='preference-detail'),
+
+    # Payment api endpoints
+    path('payments/', include(payment_router.urls)),
+    path('payments/initialize/', PaymentViewSet.as_view({'post': 'initialize'}), name='payment-initialize'),
+    path('payments/verify/', PaymentViewSet.as_view({'post': 'verify'}), name='payment-verify'),
+    path('payments/refund/<int:pk>/', PaymentViewSet.as_view({'post': 'refund'}), name='payment-refund'),
+    path('payments/webhook/', paystack_webhook, name='paystack-webhook'),
+
+    # Swagger UI (interactive API documentation)
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
+    path('swagger.yaml', schema_view.without_ui(cache_timeout=0), name='schema-yaml'),
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
