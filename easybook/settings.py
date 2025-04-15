@@ -164,9 +164,9 @@ AUTH_USER_MODEL = 'users.User'
 if 'test' in sys.argv:
     EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 else:
-    BREVO_API_KEY = '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'
-    DEFAULT_FROM_EMAIL = 'akyeaking2007@gmail.com'  # Your verified sender email
-    EMAIL_SENDER_NAME = "EasyBook Notifications"
+    BREVO_API_KEY = 'Enter brevo api key here'
+    DEFAULT_FROM_EMAIL = ''  # Your verified sender email
+    EMAIL_SENDER_NAME = ""
 
 # Paystack Configuration
 PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY')
