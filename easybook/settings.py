@@ -160,15 +160,9 @@ AUTH_USER_MODEL = 'users.User'
 #AUTH_EMAIL_MODEL = 'Users.User.email'
 
 
-# Email Configuration
-if 'test' in sys.argv:
-    EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
-else:
-    BREVO_API_KEY = ""
-    DEFAULT_FROM_EMAIL = ""  # Your verified sender email
-    EMAIL_SENDER_NAME = ""
 
-# Paystack Configuration
-PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY')
-PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
-PAYSTACK_WEBHOOK_SECRET = os.getenv('PAYSTACK_WEBHOOK_SECRET')
+
+# For production, you should use environment variables:
+# PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY')
+# PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
+# BASE_URL = os.getenv('BASE_URL', 'https://yourdomain.com')

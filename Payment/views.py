@@ -1,201 +1,136 @@
 from django.shortcuts import render
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from .models import Payment, ServiceProviderPaystackAccount
-from .serializers import (
-    PaymentSerializer,
-    PaymentInitializeSerializer,
-    PaymentVerifySerializer,
-    PaymentRefundSerializer,
-    ServiceProviderPaystackAccountSerializer,
-    ServiceProviderPaystackAccountCreateSerializer
-)
-from .services import PaystackService
 from Appointments.models import Appointment
-from django.conf import settings
+from .payment_service import PaystackService
+from .models import Transaction
 
-class ServiceProviderPaystackAccountViewSet(viewsets.ModelViewSet):
-    serializer_class = ServiceProviderPaystackAccountSerializer
-    permission_classes = [IsAuthenticated]
+# Create your views here.
 
-    def get_queryset(self):
-        return ServiceProviderPaystackAccount.objects.filter(user=self.request.user)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def setup_subaccount(request):
+    """Set up Paystack subaccount for a business with mobile money"""
+    if not request.user.is_business:
+        return Response(
+            {"error": "Only business users can set up subaccounts"},
+            status=status.HTTP_403_FORBIDDEN
+        )
 
-    @action(detail=False, methods=['post'])
-    def create_account(self, request):
-        serializer = ServiceProviderPaystackAccountCreateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    business = request.user
+    business_name = request.data.get('business_name')
+    phone_number = request.data.get('phone_number')
+    mobile_money_network = request.data.get('mobile_money_network')
 
+    # Validate required fields
+    if not all([business_name, phone_number, mobile_money_network]):
+        return Response(
+            {"error": "Missing required fields: business_name, phone_number, and mobile_money_network are required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Validate mobile money network
+    valid_networks = ['mtn', 'vodafone', 'airteltigo']
+    if mobile_money_network.lower() not in valid_networks:
+        return Response(
+            {"error": f"Invalid mobile money network. Must be one of: {', '.join(valid_networks)}"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
         paystack_service = PaystackService()
-        try:
-            result = paystack_service.create_subaccount(
-                business_name=serializer.validated_data['business_name'],
-                payment_method=serializer.validated_data['payment_method'],
-                settlement_bank=serializer.validated_data.get('settlement_bank'),
-                account_number=serializer.validated_data.get('account_number'),
-                mobile_money_provider=serializer.validated_data.get('mobile_money_provider'),
-                mobile_money_number=serializer.validated_data.get('mobile_money_number'),
-                percentage_charge=serializer.validated_data['percentage_charge']
-            )
-            
-            if not result['success']:
-                return Response(
-                    {'error': result['message']},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            account = ServiceProviderPaystackAccount.objects.create(
-                user=request.user,
-                paystack_subaccount_id=result['data']['subaccount_id'],
-                payment_method=serializer.validated_data['payment_method'],
-                settlement_bank=serializer.validated_data.get('settlement_bank'),
-                account_number=serializer.validated_data.get('account_number'),
-                mobile_money_provider=serializer.validated_data.get('mobile_money_provider'),
-                mobile_money_number=serializer.validated_data.get('mobile_money_number'),
-                is_active=True
-            )
-            
+        success = paystack_service.create_subaccount(
+            business=business,
+            business_name=business_name,
+            phone_number=phone_number,
+            mobile_money_network=mobile_money_network.lower()  # Convert to lowercase
+        )
+        
+        if success:
             return Response(
-                ServiceProviderPaystackAccountSerializer(account).data,
+                {"message": "Subaccount created successfully"},
                 status=status.HTTP_201_CREATED
             )
-        except Exception as e:
+        else:
             return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Failed to create subaccount"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-class PaymentViewSet(viewsets.ModelViewSet):
-    serializer_class = PaymentSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return Payment.objects.filter(user=self.request.user)
-
-    @action(detail=False, methods=['post'])
-    def initialize(self, request):
-        serializer = PaymentInitializeSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        appointment = get_object_or_404(
-            Appointment,
-            id=serializer.validated_data['appointment_id']
-        )
-
-        # Get service provider's Paystack account if exists
-        provider_account = None
-        if appointment.service_provider:
-            provider_account = ServiceProviderPaystackAccount.objects.filter(
-                user=appointment.service_provider,
-                is_active=True
-            ).first()
-
-        paystack_service = PaystackService(provider_account=provider_account)
-        
-        try:
-            payment_data = paystack_service.initialize_payment(
-                email=request.user.email,
-                amount=appointment.pricing.price,
-                callback_url=serializer.validated_data.get('callback_url')
-            )
-
-            payment = Payment.objects.create(
-                user=request.user,
-                appointment=appointment,
-                service_provider=appointment.service_provider,
-                pricing=appointment.pricing,
-                paystack_reference=payment_data['reference']
-            )
-
-            return Response(payment_data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    @action(detail=False, methods=['post'])
-    def verify(self, request):
-        serializer = PaymentVerifySerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        payment = get_object_or_404(
-            Payment,
-            paystack_reference=serializer.validated_data['reference']
-        )
-
-        provider_account = None
-        if payment.service_provider:
-            provider_account = ServiceProviderPaystackAccount.objects.filter(
-                user=payment.service_provider,
-                is_active=True
-            ).first()
-
-        paystack_service = PaystackService(provider_account=provider_account)
-        
-        try:
-            verification_data = paystack_service.verify_payment(
-                serializer.validated_data['reference']
-            )
-            
-            if verification_data['status'] == 'success':
-                payment.status = 'completed'
-                payment.save()
-                
-                # Update appointment status
-                payment.appointment.status = 'confirmed'
-                payment.appointment.save()
-
-            return Response(verification_data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    @action(detail=True, methods=['post'])
-    def refund(self, request, pk=None):
-        payment = self.get_object()
-        serializer = PaymentRefundSerializer(data=request.data)
-        
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        provider_account = None
-        if payment.service_provider:
-            provider_account = ServiceProviderPaystackAccount.objects.filter(
-                user=payment.service_provider,
-                is_active=True
-            ).first()
-
-        paystack_service = PaystackService(provider_account=provider_account)
-        
-        try:
-            refund_data = paystack_service.refund_payment(
-                payment.paystack_reference,
-                serializer.validated_data.get('reason')
-            )
-            
-            payment.status = 'refunded'
-            payment.refund_reason = serializer.validated_data.get('reason')
-            payment.save()
-            
-            return Response(refund_data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    def create(self, request, *args, **kwargs):
+    except ValueError as e:
         return Response(
-            {'detail': 'Use the initialize endpoint to create a payment'},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
+            {"error": str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def initialize_payment(request, appointment_id):
+    """Initialize payment for an appointment"""
+    appointment = get_object_or_404(Appointment, id=appointment_id)
+    
+    if not appointment.pricing:
+        return Response(
+            {"error": "No pricing set for this appointment"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if not appointment.service.business.paystack_subaccount_active:
+        return Response(
+            {"error": "Business has not set up payment account"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        paystack_service = PaystackService()
+        payment_url = paystack_service.initialize_payment(
+            appointment=appointment,
+            email=request.user.email,
+            amount=appointment.pricing.price
+        )
+        return Response({"payment_url": payment_url})
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['GET'])
+def verify_payment(request, appointment_id):
+    """Verify payment status after Paystack redirect"""
+    reference = request.GET.get('reference')
+    if not reference:
+        return Response(
+            {"error": "No reference provided"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        appointment = get_object_or_404(Appointment, id=appointment_id)
+        paystack_service = PaystackService()
+        
+        if paystack_service.verify_payment(reference):
+            # Update appointment status to confirmed
+            appointment.status = Appointment.STATUS_CONFIRMED
+            appointment.save()
+            return Response({"status": "success"})
+        
+        # If payment verification fails, update appointment status
+        appointment.status = Appointment.STATUS_PAYMENT_FAILED
+        appointment.save()
+        return Response(
+            {"status": "failed"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

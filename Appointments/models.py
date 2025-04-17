@@ -20,11 +20,15 @@ class Appointment(models.Model):
     STATUS_PENDING = "P"
     STATUS_CONFIRMED = "C"
     STATUS_CANCELED = "X"
+    STATUS_PAYMENT_PENDING = "PP"
+    STATUS_PAYMENT_FAILED = "PF"
 
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending"),
         (STATUS_CONFIRMED, "Confirmed"),
         (STATUS_CANCELED, "Canceled"),
+        (STATUS_PAYMENT_PENDING, "Payment Pending"),
+        (STATUS_PAYMENT_FAILED, "Payment Failed"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -32,7 +36,7 @@ class Appointment(models.Model):
     timeslot = models.ForeignKey(TimeSlot, on_delete=models.CASCADE, related_name="appointments")
     service = models.ForeignKey(Service, on_delete=models.CASCADE, default=None)
     pricing = models.ForeignKey('Services.Pricing', on_delete=models.CASCADE, null=True, blank=True)
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    status = models.CharField(max_length=2, choices=STATUS_CHOICES, default=STATUS_PAYMENT_PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -6,6 +6,7 @@ from .models import UserNotificationPreference, Notification
 from Appointments.models import Appointment
 from datetime import timedelta, datetime
 from .services import EmailService
+from Payment.payment_service import PaystackService
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_preference(sender, instance, created, **kwargs):
@@ -45,6 +46,17 @@ def handle_appointment_notification(sender, instance, created, **kwargs):
         notification_type = 'appointment_created'
         subject = f'New Appointment Confirmation - {instance.service.name}'
         
+        # Get payment URL
+        try:
+            paystack_service = PaystackService()
+            payment_url = paystack_service.initialize_payment(
+                appointment=instance,
+                email=instance.user.email,
+                amount=instance.pricing.price
+            )
+        except Exception as e:
+            payment_url = None
+        
         # Format price information
         price_info = ""
         if instance.pricing:
@@ -63,6 +75,7 @@ def handle_appointment_notification(sender, instance, created, **kwargs):
                 <p>Time: {instance.timeslot.start_time.strftime("%I:%M %p")}</p>
                 <p>Duration: {instance.timeslot.start_time.strftime("%I:%M %p")} - {instance.timeslot.end_time.strftime("%I:%M %p")}</p>
                 {f'<p>Price: {instance.pricing.currency} {instance.pricing.price}</p>' if instance.pricing else ''}
+                {f'<p><a href="{payment_url}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px;">Pay Now</a></p>' if payment_url else ''}
                 <p>Please be on time for your appointment.</p>
                 <h3>Thank you for choosing <strong>Easybook</strong>!</h3>
                 ''',

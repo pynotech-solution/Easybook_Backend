@@ -20,8 +20,7 @@ from users.views import RegisterView, LoginView, RefreshTokenView, ProfileView
 from django_rest_passwordreset.views import ResetPasswordRequestToken, ResetPasswordConfirm
 from Services.views import ServiceViewSet, ServiceCategoryListCreateView,PricingListCreateView
 from Appointments.views import AvailableTimeSlotListView, AppointmentCreateView, AppointmentDetailView, TimeSlotCreateView
-from Payment.views import PaymentViewSet, ServiceProviderPaystackAccountViewSet
-from Payment.webhooks import paystack_webhook
+from Payment.views import setup_subaccount, verify_payment
 
 from rest_framework import routers
 from Notifications.views import NotificationViewSet, UserNotificationPreferenceViewSet
@@ -81,10 +80,6 @@ schema_view = get_schema_view(
     permission_classes=[permissions.AllowAny]
 )
 
-# Payment router setup
-payment_router = routers.DefaultRouter()
-payment_router.register(r'payments', PaymentViewSet, basename='payment')
-payment_router.register(r'provider-accounts', ServiceProviderPaystackAccountViewSet, basename='provider-account')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -115,12 +110,9 @@ urlpatterns = [
     path('notifications/<int:pk>/', notification_detail, name='notification-detail'),
     path('notifications/preferences/', preference_detail, name='preference-detail'),
 
-    # Payment api endpoints
-    path('payments/', include(payment_router.urls)),
-    path('payments/initialize/', PaymentViewSet.as_view({'post': 'initialize'}), name='payment-initialize'),
-    path('payments/verify/', PaymentViewSet.as_view({'post': 'verify'}), name='payment-verify'),
-    path('payments/refund/<int:pk>/', PaymentViewSet.as_view({'post': 'refund'}), name='payment-refund'),
-    path('payments/webhook/', paystack_webhook, name='paystack-webhook'),
+    #Payment api endpoints
+    path('payment/subaccount/setup/', setup_subaccount, name='setup_subaccount'),
+    path('payment/verify/<uuid:appointment_id>/', verify_payment, name='verify_payment'),
 
     # Swagger UI (interactive API documentation)
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
